@@ -15,10 +15,13 @@ import (
 const maxConfigSize = 16 << 10
 
 type fileConfig struct {
-	BaseURL  string `toml:"base_url"`
-	Email    string `toml:"email"`
-	Output   string `toml:"output"`
-	APIToken string `toml:"api_token"`
+	Deployment string `toml:"deployment,omitempty"`
+	CloudID    string `toml:"cloud_id,omitempty"`
+	TokenEnv   string `toml:"token_env,omitempty"`
+	BaseURL    string `toml:"base_url"`
+	Email      string `toml:"email"`
+	Output     string `toml:"output"`
+	APIToken   string `toml:"api_token"`
 }
 
 // loadConfig reads ~/.go-jira/go-jirarc. JIRA_CONFIG selects another path.

@@ -16,15 +16,12 @@ import (
 type newClient func(baseURL, email, token string) (*jira.Client, error)
 
 func main() {
-	env := map[string]string{
-		"JIRA_API_TOKEN": os.Getenv("JIRA_API_TOKEN"),
-		"JIRA_EMAIL":     os.Getenv("JIRA_EMAIL"),
-		"JIRA_BASE_URL":  os.Getenv("JIRA_BASE_URL"),
-		"JIRA_OUTPUT":    os.Getenv("JIRA_OUTPUT"),
-		"HOME":           os.Getenv("HOME"),
-	}
-	if p, ok := os.LookupEnv("JIRA_CONFIG"); ok {
-		env["JIRA_CONFIG"] = p
+	env := map[string]string{}
+	for _, entry := range os.Environ() {
+		k, v, ok := strings.Cut(entry, "=")
+		if ok {
+			env[k] = v
+		}
 	}
 	os.Exit(run(os.Args[1:], env, os.Stdout, os.Stderr, func(base, email, token string) (*jira.Client, error) {
 		return jira.New(base, email, token)
@@ -32,6 +29,9 @@ func main() {
 }
 
 func run(args []string, env map[string]string, stdout, stderr io.Writer, newFn newClient) int {
+	if len(args) > 0 && diagnosticCommand(args[0]) {
+		return runDiagnostics(args, env, stdout, stderr)
+	}
 	fs := flag.NewFlagSet("jira", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	base := fs.String("base-url", env["JIRA_BASE_URL"], "Jira Cloud site URL")
@@ -45,6 +45,21 @@ func run(args []string, env map[string]string, stdout, stderr io.Writer, newFn n
 		return 2
 	}
 	rest := fs.Args()
+	if len(rest) > 0 && diagnosticCommand(rest[0]) {
+		forwarded := []string{rest[0]}
+		seen := visited(fs)
+		if seen["base-url"] {
+			forwarded = append(forwarded, "--url", *base)
+		}
+		if seen["email"] {
+			forwarded = append(forwarded, "--email", *email)
+		}
+		if seen["o"] {
+			forwarded = append(forwarded, "--output", *format)
+		}
+		forwarded = append(forwarded, rest[1:]...)
+		return runDiagnostics(forwarded, env, stdout, stderr)
+	}
 	if *format != "" && !validFormat(*format) {
 		fmt.Fprintf(stderr, "unknown format %q\n", *format)
 		return 2
@@ -618,6 +633,15 @@ func splitList(s string) ([]string, error) {
 }
 
 const usageText = `usage: jira [-base-url URL] [-email EMAIL] [-o json|yaml|toml] <command>
+
+  configure --url URL [--deployment cloud|datacenter] [--email EMAIL]
+  status
+  doctor [--project KEY] [--issue KEY]
+  permissions [--project KEY] [--issue KEY] [--permissions KEYS]
+  project KEY | issue KEY | transitions KEY | fields
+  search JQL [--limit 100]
+  request /rest/api/3/PATH [--param KEY=VALUE]
+  Diagnostics accept --output json|yaml|toml|plain and --timeout SECONDS.
 
   view ISSUE
   update ISSUE [-summary S] [-description TEXT] [-labels a,b]

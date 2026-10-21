@@ -118,3 +118,10 @@ func main() {
 ```
 
 `jira.Emit` writes JSON, YAML, or TOML. Issue responses keep the original JSON body, so custom fields are included.
+
+## Read-only diagnostics
+
+Cloud and Data Center diagnostics are available through `jira doctor`,
+`permissions`, `project`, `issue`, `transitions`, `fields`, `search`, and `request`.
+Use `jira configure` and `jira status` for setup. See [DIAGNOSTICS.md](DIAGNOSTICS.md)
+for authentication, examples, output, and the Go API.
